@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Juper/Vendor/HXPhotoPicker/Category/UIViewController+HXExtension.m"
+            timestampString = "589543749.40528"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "22"
+            endingLineNumber = "22"
+            landmarkName = "-hx_presentSelectPhotoControllerWithManager:didDone:cancel:"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  shouldBeEnabled = "No"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "-[UIViewController(HXExtension) hx_presentSelectPhotoControllerWithManager:didDone:cancel:]"
+                  moduleName = "Juper"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/fengke/Desktop/Juper/Juper/Vendor/HXPhotoPicker/Category/UIViewController+HXExtension.m"
+                  timestampString = "589543494.652454"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "22"
+                  endingLineNumber = "22"
+                  offsetFromSymbolStart = "137">
+               </Location>
+               <Location
+                  shouldBeEnabled = "No"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "__91-[UIViewController(HXExtension) hx_presentSelectPhotoControllerWithManager:didDone:cancel:]_block_invoke"
+                  moduleName = "Juper"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/fengke/Desktop/Juper/Juper/Vendor/HXPhotoPicker/Category/UIViewController+HXExtension.m"
+                  timestampString = "589543494.654897"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "22"
+                  endingLineNumber = "22"
+                  offsetFromSymbolStart = "23">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>
