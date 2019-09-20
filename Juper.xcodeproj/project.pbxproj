@@ -66,6 +66,8 @@
 		1A8CCC0D231A2B2C00E5D7CA /* JPMainTabBarController.m in Sources */ = {isa = PBXBuildFile; fileRef = 1A8CCC0C231A2B2C00E5D7CA /* JPMainTabBarController.m */; };
 		1A8CCC11231A2BC600E5D7CA /* JPViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 1A8CCC10231A2BC600E5D7CA /* JPViewController.m */; };
 		1A8CCC14231A2BE300E5D7CA /* JPNavigationController.m in Sources */ = {isa = PBXBuildFile; fileRef = 1A8CCC13231A2BE300E5D7CA /* JPNavigationController.m */; };
+		441FDD2A233252100077E61B /* JPSketchFilter.m in Sources */ = {isa = PBXBuildFile; fileRef = 441FDD29233252100077E61B /* JPSketchFilter.m */; };
+		441FDD2F2332531C0077E61B /* JPFilterViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 441FDD2E2332531C0077E61B /* JPFilterViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -188,6 +190,11 @@
 		1A8CCC12231A2BE300E5D7CA /* JPNavigationController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = JPNavigationController.h; sourceTree = "<group>"; };
 		1A8CCC13231A2BE300E5D7CA /* JPNavigationController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = JPNavigationController.m; sourceTree = "<group>"; };
 		1A8CCC16231A2C6F00E5D7CA /* PrefixHeader.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PrefixHeader.pch; sourceTree = "<group>"; };
+		441FDD28233252100077E61B /* JPSketchFilter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = JPSketchFilter.h; sourceTree = "<group>"; };
+		441FDD29233252100077E61B /* JPSketchFilter.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = JPSketchFilter.m; sourceTree = "<group>"; };
+		441FDD2C2332524D0077E61B /* JPFilterHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = JPFilterHeader.h; sourceTree = "<group>"; };
+		441FDD2D2332531C0077E61B /* JPFilterViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = JPFilterViewController.h; sourceTree = "<group>"; };
+		441FDD2E2332531C0077E61B /* JPFilterViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = JPFilterViewController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -369,6 +376,8 @@
 				1A8CCC0C231A2B2C00E5D7CA /* JPMainTabBarController.m */,
 				1A3304E32323AB2C005E5C54 /* JPMainViewController.h */,
 				1A3304E42323AB2C005E5C54 /* JPMainViewController.m */,
+				441FDD2D2332531C0077E61B /* JPFilterViewController.h */,
+				441FDD2E2332531C0077E61B /* JPFilterViewController.m */,
 			);
 			path = Controller;
 			sourceTree = "<group>";
@@ -419,6 +428,7 @@
 		1A8CCC0A231A2AED00E5D7CA /* Business */ = {
 			isa = PBXGroup;
 			children = (
+				441FDD27233251E90077E61B /* Filter */,
 				1A3304E62323AD7A005E5C54 /* Helper */,
 				1A3304F02323B609005E5C54 /* Controller */,
 			);
@@ -445,6 +455,16 @@
 			);
 			name = "Supporting Files";
 			path = Juper;
+			sourceTree = "<group>";
+		};
+		441FDD27233251E90077E61B /* Filter */ = {
+			isa = PBXGroup;
+			children = (
+				441FDD2C2332524D0077E61B /* JPFilterHeader.h */,
+				441FDD28233252100077E61B /* JPSketchFilter.h */,
+				441FDD29233252100077E61B /* JPSketchFilter.m */,
+			);
+			path = Filter;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -542,6 +562,7 @@
 				1A3304BE2323A896005E5C54 /* NSString+HXExtension.m in Sources */,
 				1A3304D22323A896005E5C54 /* HXPhotoViewFlowLayout.m in Sources */,
 				1A3304B72323A896005E5C54 /* HXDownloadProgressView.m in Sources */,
+				441FDD2F2332531C0077E61B /* JPFilterViewController.m in Sources */,
 				1A3304CA2323A896005E5C54 /* HXCollectionView.m in Sources */,
 				1A3304C12323A896005E5C54 /* NSBundle+HXPhotoPicker.m in Sources */,
 				1A3304C22323A896005E5C54 /* UIImageView+HXExtension.m in Sources */,
@@ -569,6 +590,7 @@
 				1A3304B42323A896005E5C54 /* HXCustomCameraViewController.m in Sources */,
 				1A3304D42323A896005E5C54 /* HXCustomCameraController.m in Sources */,
 				1A3304EA2323AD8F005E5C54 /* UIView+Additions.m in Sources */,
+				441FDD2A233252100077E61B /* JPSketchFilter.m in Sources */,
 				1A3304CB2323A896005E5C54 /* HXPhotoModel.m in Sources */,
 				1A3304D02323A896005E5C54 /* HXPhotoTools.m in Sources */,
 				1A3304D32323A896005E5C54 /* HXPhotoManager.m in Sources */,
