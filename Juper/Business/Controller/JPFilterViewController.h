@@ -12,6 +12,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface JPFilterViewController : JPViewController
 
+@property (nonatomic, copy) void(^dismissedBlock)(UIImage *image);
+
+- (instancetype)initWithImage:(UIImage *)originImage;
+
 @end
 
 NS_ASSUME_NONNULL_END

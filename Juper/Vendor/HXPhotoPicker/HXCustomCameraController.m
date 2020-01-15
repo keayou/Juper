@@ -10,6 +10,7 @@
 #import <UIKit/UIKit.h>
 #import <CoreMotion/CoreMotion.h>
 #import "HXPhotoTools.h"
+#import "HXCustomPreviewView.h"
 
 const CGFloat HXZoomRate = 1.0f;
 
@@ -74,39 +75,40 @@ const CGFloat HXZoomRate = 1.0f;
         }
     }
 }
-- (BOOL)setupSession:(NSError *)error {
+- (void)initSeesion {
     self.captureSession = [[AVCaptureSession alloc] init];
+}
+- (void)setupPreviewLayer:(AVCaptureVideoPreviewLayer *)previewLayer startSessionCompletion:(void (^)(BOOL success))completion {
     if ([self.captureSession canSetSessionPreset:self.sessionPreset]) {
         self.captureSession.sessionPreset = self.sessionPreset;
     }else {
-        self.captureSession.sessionPreset = AVCaptureSessionPreset1280x720;
+        if ([self.captureSession canSetSessionPreset:AVCaptureSessionPresetHigh]) {
+            self.captureSession.sessionPreset = AVCaptureSessionPresetHigh;
+        }else {
+            self.captureSession.sessionPreset = AVCaptureSessionPreset1280x720;
+        }
     }
-
     AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-    AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&error];
+    if (self.defaultFrontCamera) {
+        videoDevice = [self cameraWithPosition:AVCaptureDevicePositionFront];
+    }
+    AVCaptureDeviceInput *videoInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:nil];
     if (videoInput) {
         if ([self.captureSession canAddInput:videoInput]) {
             [self.captureSession addInput:videoInput];
             self.activeVideoInput = videoInput;
         }
     }else {
-        return NO;
+        if (completion) {
+            completion(NO);
+        }
+        return;
     }
-    
-//    self.imageOutput = [[AVCaptureStillImageOutput alloc] init];
-//    self.imageOutput.outputSettings = @{AVVideoCodecKey : AVVideoCodecJPEG};
-//    if ([self.captureSession canAddOutput:self.imageOutput]) {
-//        [self.captureSession addOutput:self.imageOutput];
-//    }
-    
-//    self.movieOutput = [[AVCaptureMovieFileOutput alloc] init];
-//    if ([self.captureSession canAddOutput:self.movieOutput]) {
-//        [self.captureSession addOutput:self.movieOutput];
-//    }
-    
-    self.videoQueue = dispatch_queue_create("com.hxphotopicker.VideoQueue", NULL);
-    
-    return YES;
+    previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
+    [self.captureSession startRunning];
+    if (completion) {
+        completion(YES);
+    }
 }
 - (AVCaptureMovieFileOutput *)movieOutput {
     if (!_movieOutput) {
@@ -172,28 +174,24 @@ const CGFloat HXZoomRate = 1.0f;
     }
     [self.captureSession commitConfiguration];
 }
-- (void)startSessionComplete:(void (^)(void))complete {
-    if (![self.captureSession isRunning]) {
-        dispatch_async(self.videoQueue, ^{
-            [self.captureSession startRunning];
-            if (complete) {
-                complete();
-            }
-        });
-    }
-}
 - (void)startSession {
-    if (![self.captureSession isRunning]) {
-        dispatch_async(self.videoQueue, ^{
-            [self.captureSession startRunning];
-        });
-    }
+    AVCaptureSession *session = self.captureSession;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        if (![session isRunning]) {
+            [session startRunning];
+        }
+    });
+//    if (![self.captureSession isRunning]) {
+//        dispatch_async(self.videoQueue, ^{
+//            [self.captureSession startRunning];
+//        });
+//    }
 }
 - (void)stopSession {
-    
+    AVCaptureSession *session = self.captureSession;
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        if (self.captureSession.running) {
-            [self.captureSession stopRunning];
+        if (session.running) {
+            [session stopRunning];
         }
     });
     

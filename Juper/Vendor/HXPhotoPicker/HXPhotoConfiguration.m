@@ -26,6 +26,8 @@
     self.lookLivePhoto = NO;
     self.lookGifPhoto = YES;
     self.selectTogether = NO;
+    self.showOriginalBytesLoading = NO;
+    self.exportVideoURLForHighestQuality = NO;
     self.maxNum = 10;
     self.photoMaxNum = 9;
     self.videoMaxNum = 1;
@@ -65,9 +67,9 @@
     self.pushTransitionDuration = 0.45f;
     self.popTransitionDuration = 0.35f;
     self.popInteractiveTransitionDuration = 0.35f;
-    self.transitionAnimationOption = UIViewAnimationOptionCurveEaseOut;
+    
     if (HX_IS_IPhoneX_All) {
-        self.clarityScale = 2.4f;
+        self.clarityScale = 3;
     }else if ([UIScreen mainScreen].bounds.size.width == 320) {
         self.clarityScale = 1.2;
     }else if ([UIScreen mainScreen].bounds.size.width == 375) {
@@ -92,10 +94,46 @@
 //    self.albumShowMode = HXPhotoAlbumShowModePopup;
     
     self.editVideoExportPresetName = AVAssetExportPresetHighestQuality;
+    
+    self.cellDarkSelectTitleColor = [UIColor whiteColor];
+    self.cellDarkSelectBgColor = [UIColor colorWithRed:0.15 green:0.15 blue:0.15 alpha:1];
+    self.previewDarkSelectBgColor = [UIColor whiteColor];
+    self.previewDarkSelectTitleColor = [UIColor blackColor];
+    [HXPhotoCommon photoCommon].photoStyle = HXPhotoStyleDefault;
+    self.defaultFrontCamera = NO;
+    
+    self.limitPhotoSize = 0;
+    self.limitVideoSize = 0;
+    self.selectPhotoLimitSize = NO;
+    self.selectVideoLimitSize = NO;
+    self.navBarTranslucent = YES;
+    self.bottomViewTranslucent = YES;
+    self.selectVideoBeyondTheLimitTimeAutoEdit = NO;
+    self.videoAutoPlayType = HXVideoAutoPlayTypeWiFi;
+    
+    self.downloadNetworkVideo = YES;
+}
+- (UIColor *)cameraFocusBoxColor {
+    if (!_cameraFocusBoxColor) {
+        _cameraFocusBoxColor = [UIColor colorWithRed:0 green:0.47843137254901963 blue:1 alpha:1];
+    }
+    return _cameraFocusBoxColor;
+}
+- (void)setVideoAutoPlayType:(HXVideoAutoPlayType)videoAutoPlayType {
+    _videoAutoPlayType = videoAutoPlayType;
+    [HXPhotoCommon photoCommon].videoAutoPlayType = videoAutoPlayType;
+}
+- (void)setDownloadNetworkVideo:(BOOL)downloadNetworkVideo {
+    _downloadNetworkVideo = downloadNetworkVideo;
+    [HXPhotoCommon photoCommon].downloadNetworkVideo = downloadNetworkVideo;
+}
+- (void)setPhotoStyle:(HXPhotoStyle)photoStyle {
+    _photoStyle = photoStyle;
+    [HXPhotoCommon photoCommon].photoStyle = photoStyle;
 }
 - (void)setLanguageType:(HXPhotoLanguageType)languageType {
     if ([HXPhotoCommon photoCommon].languageType != languageType) {
-        [NSBundle hx_languageBundleDealloc];
+        [HXPhotoCommon photoCommon].languageBundle = nil;
     }
     _languageType = languageType;
     [HXPhotoCommon photoCommon].languageType = languageType;
@@ -130,6 +168,12 @@
         _originalSelectedImageName = @"hx_original_selected";
     }
     return _originalSelectedImageName;
+}
+- (void)setVideoMaximumSelectDuration:(NSInteger)videoMaximumSelectDuration {
+    if (videoMaximumSelectDuration <= 0) {
+        videoMaximumSelectDuration = MAXFLOAT;
+    }
+    _videoMaximumSelectDuration = videoMaximumSelectDuration;
 }
 - (void)setVideoMaximumDuration:(NSTimeInterval)videoMaximumDuration {
     if (videoMaximumDuration <= 3) {

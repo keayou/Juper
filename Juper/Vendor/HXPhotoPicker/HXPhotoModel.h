@@ -54,19 +54,37 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelMediaTypeCameraVideoType) {
 };
 
 typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
-    HXPhotoModelVideoStateNormal = 0,   //!< 普通状态
+    HXPhotoModelVideoStateNormal = 0,   //!< 正常状态
     HXPhotoModelVideoStateUndersize,    //!< 视频时长小于最小选择秒数
     HXPhotoModelVideoStateOversize      //!< 视频时长超出限制
+};
+
+typedef NS_ENUM(NSUInteger, HXPhotoModelFormat) {
+    HXPhotoModelFormatUnknown = 0,  //!< 未知格式
+    HXPhotoModelFormatPNG,          //!< PNG格式
+    HXPhotoModelFormatJPG,          //!< JPG格式
+    HXPhotoModelFormatGIF,          //!< GIF格式
+    HXPhotoModelFormatHEIC          //!< HEIC格式
 };
 
 @interface HXPhotoModel : NSObject<NSCoding>
 /**
  文件在手机里的原路径(照片 或 视频)
  只有在手机存在的图片才会有值, iCloud上的没有
+ 如果是通过相机拍摄的并且没有保存到相册(临时的) 视频有值, 照片没有值
  
- - 如果是通过相机拍摄的并且没有保存到相册(临时的) 视频有值, 照片没有值
+ 此属性具有不稳定性可能为空，如想获取视频地址请根据model里的导出视频方法
+ | | | | | | | | | | | | | | | | | | | | | | | | |
+ v v v v v v v v v v v v v v v v v v v v v v v v v
+ - (void)exportVideoWithPresetName:(NSString * _Nullable)presetName
+                startRequestICloud:(HXModelStartRequestICloud _Nullable)startRequestICloud
+             iCloudProgressHandler:(HXModelProgressHandler _Nullable)iCloudProgressHandler
+             exportProgressHandler:(HXModelExportVideoProgressHandler _Nullable)exportProgressHandler
+                           success:(HXModelExportVideoSuccessBlock _Nullable)success
+                            failed:(HXModelFailedBlock _Nullable)failed
+ 或者将配置类里的 requestImageAfterFinishingSelection 设为YES，点击完成后会自动获取视频地址并且赋值给videoURL
  */
-@property (strong, nonatomic) NSURL * _Nullable fileURL;
+@property (strong, nonatomic) NSURL * _Nullable fileURL DEPRECATED_MSG_ATTRIBUTE("Use 'exportVideoWithPresetName:startRequestICloud:iCloudProgressHandler:exportProgressHandler:success:failed' instead");
 /**
  创建日期
  
@@ -94,6 +112,8 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
 @property (assign, nonatomic) HXPhotoModelMediaTypeCameraVideoType cameraVideoType;
 /**  照片PHAsset对象  */
 @property (strong, nonatomic) PHAsset * _Nullable asset;
+/// 照片格式
+@property (assign, nonatomic) HXPhotoModelFormat photoFormat;
 /**  视频秒数 */
 @property (nonatomic, assign) NSTimeInterval videoDuration;
 /**  选择的下标 */
@@ -102,17 +122,23 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
 @property (copy, nonatomic) NSString * _Nullable selectIndexStr;
 /**  照片原始宽高 */
 @property (assign, nonatomic) CGSize imageSize;
-/**  本地视频URL */
+/**  本地视频URL / 网络视频地址 */
 @property (strong, nonatomic) NSURL * _Nullable videoURL;
 /**  网络图片的地址 */
 @property (copy, nonatomic) NSURL * _Nullable networkPhotoUrl;
 /**  网络图片缩略图地址  */
 @property (strong, nonatomic) NSURL * _Nullable networkThumbURL;
+/// 网络图片的大小
+//@property (assign, nonatomic) NSUInteger networkImageSize;
 /**  临时的列表小图 - 本地图片才用这个上传  */
 @property (strong, nonatomic) UIImage * _Nullable thumbPhoto;
 /**  临时的预览大图  - 本地图片才用这个上传 */
 @property (strong, nonatomic) UIImage * _Nullable previewPhoto;
-
+/// 图片本地地址
+/// 正常情况下为空
+/// 1.调用过 requestImageURLStartRequestICloud 这个方法会有值
+/// 2.HXPhotoConfiguration.requestImageAfterFinishingSelection = YES 时，并且选择了原图或者 tpye = HXPhotoModelMediaTypePhotoGif 有值
+@property (strong, nonatomic) NSURL * _Nullable imageURL;
 
 #pragma mark - < Disabled >
 /**  是否正在下载iCloud上的资源  */
@@ -159,6 +185,16 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
 @property (assign, nonatomic) BOOL downloadComplete;
 /**  网络图片是否下载错误 */
 @property (assign, nonatomic) BOOL downloadError;
+
+/**  视频当前播放的时间 */
+@property (assign, nonatomic) NSTimeInterval videoCurrentTime;
+
+/// 当前资源的大小 单位：b 字节
+/// 本地图片获取的大小可能不准确
+@property (assign, nonatomic) NSUInteger assetByte;
+@property (assign, nonatomic) BOOL requestAssetByte;
+
+
 /**  临时图片 */
 @property (strong, nonatomic) UIImage * _Nullable tempImage;
 /**  行数 */
@@ -180,13 +216,11 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
 
 /**  如果当前为视频资源时的视频状态  */
 @property (assign, nonatomic) HXPhotoModelVideoState videoState;
-
 @property (copy, nonatomic) NSString * _Nullable cameraNormalImageNamed;
 @property (copy, nonatomic) NSString * _Nullable cameraPreviewImageNamed;
 
 @property (strong, nonatomic) id _Nullable tempAsset;
 @property (assign, nonatomic) BOOL loadOriginalImage;
-
 
 #pragma mark - < init >
 /**  通过image初始化 */
@@ -203,9 +237,18 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
 + (instancetype _Nullable )photoModelWithImageURL:(NSURL * _Nullable)imageURL;
 + (instancetype _Nullable)photoModelWithImageURL:(NSURL * _Nullable)imageURL thumbURL:(NSURL * _Nullable)thumbURL;
 
+/// 网络视频初始化
+/// @param videoURL 网络视频地址
+/// @param videoCoverURL 视频封面地址
+/// @param videoDuration 视频时长
++ (instancetype _Nullable )photoModelWithNetworkVideoURL:(NSURL *_Nonnull)videoURL videoCoverURL:(NSURL *_Nonnull)videoCoverURL videoDuration:(NSTimeInterval)videoDuration;
+
+/// 判断两个HXPhotoModel是否是同一个
+/// @param photoModel 模型
+- (BOOL)isEqualPhotoModel:(HXPhotoModel * _Nullable)photoModel;
 
 #pragma mark - < Request >
-+ (id _Nullable)requestImageWithURL:(NSURL *_Nullable)url progress:(void (^ _Nullable) (NSInteger receivedSize, NSInteger expectedSize))progress completion:(void (^ _Nullable) (UIImage * _Nullable image, NSURL * _Nonnull url, NSError * _Nullable error))completion;
++ (id _Nullable)requestImageWithURL:(NSURL *_Nullable)url progress:(void (^ _Nullable) (NSInteger receivedSize, NSInteger expectedSize))progress completion:(void (^ _Nullable) (UIImage * _Nullable image, NSURL * _Nullable url, NSError * _Nullable error))completion;
 
 + (PHImageRequestID)requestThumbImageWithPHAsset:(PHAsset * _Nullable)asset size:(CGSize)size completion:(void (^ _Nullable)(UIImage *_Nullable image, PHAsset * _Nullable asset))completion;
 
@@ -223,6 +266,7 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
 - (PHImageRequestID)requestThumbImageCompletion:(HXModelImageSuccessBlock _Nullable)completion;
 - (PHImageRequestID)requestThumbImageWithSize:(CGSize)size
                                    completion:(HXModelImageSuccessBlock _Nullable)completion;
+- (PHImageRequestID)highQualityRequestThumbImageWithSize:(CGSize)size completion:(HXModelImageSuccessBlock _Nullable )completion;
 
 /**
  请求获取预览大图，此方法只会回调一次，如果为视频的话就是视频封面
@@ -295,7 +339,7 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
 /**
  导出视频
 
- @param presetName AVAssetExportPresetHighestQuality
+ @param presetName AVAssetExportPresetHighestQuality // 为空时默认 AVAssetExportPresetMediumQuality
  @param startRequestICloud 开始下载iCloud上的视频，如果视频是iCloud的视频则会先下载
  @param iCloudProgressHandler iCloud下载进度
  @param exportProgressHandler 视频导出进度
@@ -315,10 +359,16 @@ typedef NS_ENUM(NSUInteger, HXPhotoModelVideoState) {
  @return 请求的id，
          可用于取消请求 [self.asset cancelContentEditingInputRequest:(PHContentEditingInputRequestID)];
  */
-- (PHContentEditingInputRequestID)requestImageURLStartRequestICloud:(void (^ _Nullable)(PHContentEditingInputRequestID iCloudRequestId, HXPhotoModel * _Nullable model))startRequestICloud
+- (PHContentEditingInputRequestID)requestImageURLStartRequestICloud:(void (^ _Nullable)(
+                                                                                        PHContentEditingInputRequestID iCloudRequestId,
+                                                                                        HXPhotoModel * _Nullable model)
+                                                                     )startRequestICloud
                                                     progressHandler:(HXModelProgressHandler _Nullable)progressHandler
                                                             success:(HXModelImageURLSuccessBlock _Nullable)success
                                                              failed:(HXModelFailedBlock _Nullable)failed;
+
+@property (assign, nonatomic) CGFloat previewContentOffsetX;
+
 @end
 
 @class CLGeocoder;

@@ -11,7 +11,6 @@
 #import "UIImage+HXExtension.h"
 #import "HXPhotoManager.h"
 #import <sys/utsname.h>
-#import "HXDatePhotoToolManager.h"
 #import <MobileCoreServices/MobileCoreServices.h>
 @implementation HXPhotoTools
 
@@ -141,6 +140,7 @@
         if (handler) handler(status);
     }else if (status == PHAuthorizationStatusDenied ||
               status == PHAuthorizationStatusRestricted) {
+                  if (handler) handler(status);
         [self showNoAuthorizedAlertWithViewController:viewController];
     }else {
         [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
@@ -206,9 +206,9 @@
         }
     }
 }
-+ (NSString *)getBytesFromDataLength:(NSInteger)dataLength {
++ (NSString *)getBytesFromDataLength:(NSUInteger)dataLength {
     NSString *bytes;
-    if (dataLength >= 0.1 * (1024 * 1024)) {
+    if (dataLength >= 0.5 * (1024 * 1024)) {
         bytes = [NSString stringWithFormat:@"%0.1fM",dataLength/1024/1024.0];
     } else if (dataLength >= 1024) {
         bytes = [NSString stringWithFormat:@"%0.0fK",dataLength/1024.0];
@@ -458,7 +458,30 @@
     } 
     return have;
 }
-+ (void)selectListWriteToTempPath:(NSArray *)selectList requestList:(void (^)(NSArray *, NSArray *))requestList completion:(void (^)(NSArray<NSURL *> *, NSArray<NSURL *> *, NSArray<NSURL *> *))completion error:(void (^)(void))error {
-    NSSLog(@"该方法无效!!!");
+
++ (BOOL)FileExistsAtVideoURL:(NSURL *)videoURL {
+    if (!videoURL) {
+        return NO;
+    }
+    NSString * downloadPath = HXPhotoPickerDownloadVideosPath;
+    NSFileManager * fileManager = [NSFileManager defaultManager];
+    NSString *fullPathToFile = [self getVideoURLFilePath:videoURL];
+    if (![fileManager fileExistsAtPath:downloadPath]) {
+        [fileManager createDirectoryAtPath:downloadPath withIntermediateDirectories:YES attributes:nil error:nil];
+    }else {
+        if ([fileManager fileExistsAtPath:fullPathToFile]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
++ (NSString *)getVideoURLFilePath:(NSURL *)videoURL {
+    if (!videoURL) {
+        return nil;
+    }
+    NSString * fileName = [videoURL.absoluteString stringByReplacingOccurrencesOfString:@"/" withString:@"_"];
+    NSString *fullPathToFile = [HXPhotoPickerDownloadVideosPath stringByAppendingPathComponent:fileName];
+    return fullPathToFile;
 }
 @end

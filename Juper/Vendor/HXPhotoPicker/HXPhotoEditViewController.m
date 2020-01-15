@@ -203,55 +203,61 @@
 - (void)setupModel {
     if (self.model.asset) {
         self.bottomView.userInteractionEnabled = NO;
-        HXWeakSelf
         if (!self.isInside) {
             [self.view hx_showLoadingHUDText:nil];
         }
-        self.requestId = [self.model requestImageURLStartRequestICloud:^(PHContentEditingInputRequestID iCloudRequestId, HXPhotoModel *model) {
-            weakSelf.requestId = iCloudRequestId;
-        } progressHandler:nil success:^(NSURL *imageURL, HXPhotoModel *model, NSDictionary *info) {
-            weakSelf.bottomView.userInteractionEnabled = YES;
-            NSData *imageData = [NSData dataWithContentsOfFile:imageURL.relativePath];
-            UIImage *image = [UIImage imageWithData:imageData];
-
-//            UIImage *image = [UIImage imageWithContentsOfFile:imageURL.relativePath];
-            if (image.imageOrientation != UIImageOrientationUp) {
-                image = [image hx_normalizedImage];
-            }
-            weakSelf.originalImage = image;
-            weakSelf.imageView.image = image;
-            [weakSelf.view hx_handleLoading];
-            weakSelf.imageRequestComplete = YES;
-            
-            if (!weakSelf.isInside) {
-                [weakSelf fixationEdit];
-            }else {
-                if (weakSelf.transitionCompletion) {
-                    [weakSelf fixationEdit];
-                }
-            }
-        } failed:^(NSDictionary *info, HXPhotoModel *model) {
-            [weakSelf.view hx_handleLoading];
-            weakSelf.bottomView.userInteractionEnabled = YES;
-            weakSelf.imageRequestComplete = YES;
-            if (!weakSelf.isInside) {
-                [weakSelf fixationEdit];
-            }else {
-                if (weakSelf.transitionCompletion) {
-                    [weakSelf fixationEdit];
-                }
-            }
-        }];
+        [self requestImaegURL];
     }else {
         self.imageView.image = self.model.thumbPhoto;
         self.originalImage = self.model.thumbPhoto;
-        self.imageRequestComplete = YES;
-        if (!self.isInside) {
+        [self loadImageCompletion];
+    }
+}
+- (void)requestImaegURL {
+    HXWeakSelf
+    self.requestId = [self.model requestImageURLStartRequestICloud:^(PHContentEditingInputRequestID iCloudRequestId, HXPhotoModel *model) {
+        weakSelf.requestId = iCloudRequestId;
+    } progressHandler:nil success:^(NSURL *imageURL, HXPhotoModel *model, NSDictionary *info) {
+        weakSelf.bottomView.userInteractionEnabled = YES;
+        NSData *imageData = [NSData dataWithContentsOfFile:imageURL.relativePath];
+        UIImage *image = [UIImage imageWithData:imageData];
+        if (image.imageOrientation != UIImageOrientationUp) {
+            image = [image hx_normalizedImage];
+        }
+        weakSelf.originalImage = image;
+        weakSelf.imageView.image = image;
+        [weakSelf.view hx_handleLoading];
+        [weakSelf loadImageCompletion];
+    } failed:^(NSDictionary *info, HXPhotoModel *model) {
+        [weakSelf requenstImage];
+    }];
+}
+- (void)requenstImage {
+    HXWeakSelf
+    self.requestId = [self.model requestPreviewImageWithSize:PHImageManagerMaximumSize startRequestICloud:^(PHImageRequestID iCloudRequestId, HXPhotoModel * _Nullable model) {
+        weakSelf.requestId = iCloudRequestId;
+    } progressHandler:nil success:^(UIImage * _Nullable image, HXPhotoModel * _Nullable model, NSDictionary * _Nullable info) {
+        weakSelf.bottomView.userInteractionEnabled = YES;
+        if (image.imageOrientation != UIImageOrientationUp) {
+            image = [image hx_normalizedImage];
+        }
+        weakSelf.originalImage = image;
+        weakSelf.imageView.image = image;
+        [weakSelf.view hx_handleLoading];
+        [weakSelf loadImageCompletion];
+    } failed:^(NSDictionary * _Nullable info, HXPhotoModel * _Nullable model) {
+        [weakSelf.view hx_handleLoading];
+        weakSelf.bottomView.userInteractionEnabled = YES;
+        [weakSelf loadImageCompletion];
+    }];
+}
+- (void)loadImageCompletion {
+    self.imageRequestComplete = YES;
+    if (!self.isInside) {
+        [self fixationEdit];
+    }else {
+        if (self.transitionCompletion) {
             [self fixationEdit];
-        }else {
-            if (self.transitionCompletion) {
-                [self fixationEdit];
-            }
         }
     }
 }
@@ -606,6 +612,12 @@
 - (void)bottomViewDidCancelClick {
     [self stopTimer];
     self.isCancel = YES;
+    if ([self.delegate respondsToSelector:@selector(photoEditViewControllerDidCancel:)]) {
+        [self.delegate photoEditViewControllerDidCancel:self];
+    }
+    if (self.cancelBlock) {
+        self.cancelBlock(self);
+    }
     if (self.navigationController.viewControllers.count > 1) {
         [self.navigationController popViewControllerAnimated:NO];
     }else {
@@ -695,11 +707,20 @@
     HXPhotoModel *model = [HXPhotoModel photoModelWithImage:image];
     if (self.outside) {
         if (self.navigationController.viewControllers.count > 1) {
+            if ([self.delegate respondsToSelector:@selector(photoEditViewControllerDidClipClick:beforeModel:afterModel:)]) {
+                [self.delegate photoEditViewControllerDidClipClick:self beforeModel:self.model afterModel:model];
+            }
+            if (self.doneBlock) {
+                self.doneBlock(self.model, model, self);
+            }
             [self.navigationController popViewControllerAnimated:NO];
         }else {
             [self dismissViewControllerAnimated:NO completion:^{
                 if ([self.delegate respondsToSelector:@selector(photoEditViewControllerDidClipClick:beforeModel:afterModel:)]) {
                     [self.delegate photoEditViewControllerDidClipClick:self beforeModel:self.model afterModel:model];
+                }
+                if (self.doneBlock) {
+                    self.doneBlock(self.model, model, self);
                 }
             }];
         }
@@ -710,17 +731,29 @@
     if (self.manager.configuration.singleSelected &&
         self.manager.configuration.singleJumpEdit) {
         if (self.navigationController.viewControllers.count > 1) {
+            if ([self.delegate respondsToSelector:@selector(photoEditViewControllerDidClipClick:beforeModel:afterModel:)]) {
+                [self.delegate photoEditViewControllerDidClipClick:self beforeModel:self.model afterModel:model];
+            }
+            if (self.doneBlock) {
+                self.doneBlock(self.model, model, self);
+            }
             [self.navigationController popViewControllerAnimated:NO];
         }else {
             [self dismissViewControllerAnimated:NO completion:^{
                 if ([self.delegate respondsToSelector:@selector(photoEditViewControllerDidClipClick:beforeModel:afterModel:)]) {
                     [self.delegate photoEditViewControllerDidClipClick:self beforeModel:self.model afterModel:model];
                 }
+                if (self.doneBlock) {
+                    self.doneBlock(self.model, model, self);
+                }
             }];
         }
     }else {
         if ([self.delegate respondsToSelector:@selector(photoEditViewControllerDidClipClick:beforeModel:afterModel:)]) {
             [self.delegate photoEditViewControllerDidClipClick:self beforeModel:self.model afterModel:model];
+        }
+        if (self.doneBlock) {
+            self.doneBlock(self.model, model, self);
         }
         if (self.navigationController.viewControllers.count > 1) {
             [self.navigationController popViewControllerAnimated:NO];
@@ -823,6 +856,22 @@
 @end
 
 @implementation HXPhotoEditBottomView
+- (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection {
+    [super traitCollectionDidChange:previousTraitCollection];
+#ifdef __IPHONE_13_0
+    if (@available(iOS 13.0, *)) {
+        if ([self.traitCollection hasDifferentColorAppearanceComparedToTraitCollection:previousTraitCollection]) {
+            
+            UIColor *color = [HXPhotoCommon photoCommon].isDark ? [UIColor whiteColor] : self.manager.configuration.themeColor;
+            if ([color isEqual:[UIColor blackColor]]) {
+                color = [UIColor whiteColor];
+            }
+            [self.clipBtn setTitleColor:color forState:UIControlStateNormal];
+            [self.clipBtn setTitleColor:[color colorWithAlphaComponent:0.5] forState:UIControlStateDisabled];
+        }
+    }
+#endif
+}
 - (instancetype)initWithManager:(HXPhotoManager *)manager {
     self = [super init];
     if (self) {
@@ -920,7 +969,6 @@
     
     self.clipBtn.hx_h = 40;
     self.clipBtn.hx_w = self.clipBtn.titleLabel.hx_getTextWidth;
-//    self.clipBtn.hx_size = CGSizeMake([HXPhotoTools getTextWidth:self.clipBtn.currentTitle height:40 fontSize:15] + 20, 40);
     self.clipBtn.hx_x = self.hx_w - 20 - self.clipBtn.hx_w;
     
     self.selectRatioBtn.center = CGPointMake(self.hx_w / 2, 20);
@@ -1012,7 +1060,7 @@
                 }
             }
         }
-        UIColor *color = self.manager.configuration.themeColor;
+        UIColor *color = [HXPhotoCommon photoCommon].isDark ? [UIColor whiteColor] : self.manager.configuration.themeColor;
         if ([color isEqual:[UIColor blackColor]]) {
             color = [UIColor whiteColor];
         }

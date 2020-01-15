@@ -17,6 +17,8 @@
 #import "HXCustomNavigationController.h"
 #import "HXCustomCameraViewController.h"
 #import "HXPhotoViewController.h"
+#import "HXPhotoBottomSelectView.h"
+
 
 @interface HXPhotoView ()<HXCollectionViewDataSource,HXCollectionViewDelegate,HXPhotoSubViewCellDelegate,UIActionSheetDelegate,UIAlertViewDelegate,HXAlbumListViewControllerDelegate,HXCustomCameraViewControllerDelegate,HXPhotoPreviewViewControllerDelegate, HXPhotoViewControllerDelegate, HXCustomNavigationControllerDelegate>
 @property (strong, nonatomic) NSMutableArray *dataList;
@@ -41,6 +43,7 @@
 - (UICollectionViewFlowLayout *)flowLayout {
     if (!_flowLayout) {
         _flowLayout = [[UICollectionViewFlowLayout alloc] init];
+        _flowLayout.scrollDirection = self.scrollDirection;
     }
     return _flowLayout;
 }
@@ -75,24 +78,35 @@
 + (instancetype)photoManager:(HXPhotoManager *)manager {
     return [[self alloc] initWithManager:manager];
 }
-- (instancetype)initWithFrame:(CGRect)frame manager:(HXPhotoManager *)manager {
-    self = [super initWithFrame:frame];
-    if (self) {
-        _manager = manager;
++ (instancetype)photoManager:(HXPhotoManager *)manager scrollDirection:(UICollectionViewScrollDirection)scrollDirection {
+    return [[self alloc] initWithManager:manager scrollDirection:scrollDirection];
+}
+- (instancetype)initWithCoder:(NSCoder *)coder {
+    if (self = [super initWithCoder:coder]) {
         [self setup];
     }
     return self;
-} 
-- (instancetype)initWithManager:(HXPhotoManager *)manager {
-    self = [super init];
+}
+- (instancetype)initWithFrame:(CGRect)frame manager:(HXPhotoManager *)manager {
+    return [self initWithFrame:frame manager:manager scrollDirection:UICollectionViewScrollDirectionVertical];
+}
+- (instancetype)initWithFrame:(CGRect)frame manager:(HXPhotoManager *)manager scrollDirection:(UICollectionViewScrollDirection)scrollDirection {
+    self = [super initWithFrame:frame];
     if (self) {
+        self.scrollDirection = scrollDirection;
         _manager = manager;
         [self setup];
     }
     return self;
 }
-- (instancetype)init {
-    if (self = [super init]) {
+- (instancetype)initWithManager:(HXPhotoManager *)manager {
+    return [self initWithManager:manager scrollDirection:UICollectionViewScrollDirectionVertical];
+}
+- (instancetype)initWithManager:(HXPhotoManager *)manager scrollDirection:(UICollectionViewScrollDirection)scrollDirection {
+    self = [super init];
+    if (self) {
+        self.scrollDirection = scrollDirection;
+        _manager = manager;
         [self setup];
     }
     return self;
@@ -112,7 +126,9 @@
     if (!_collectionView) {
         _collectionView = [[HXCollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:self.flowLayout];
         _collectionView.tag = 8888;
-        _collectionView.scrollEnabled = NO;
+        if (self.scrollDirection != UICollectionViewScrollDirectionHorizontal) {
+            _collectionView.scrollEnabled = NO;
+        }
         _collectionView.dataSource = self;
         _collectionView.delegate = self;
         _collectionView.backgroundColor = self.backgroundColor;
@@ -127,10 +143,18 @@
     }
     return _lineCount;
 }
+- (void)setScrollDirection:(UICollectionViewScrollDirection)scrollDirection {
+    _scrollDirection = scrollDirection;
+    if (scrollDirection == UICollectionViewScrollDirectionHorizontal) {
+        self.collectionView.scrollEnabled = YES;
+    }else {
+        self.collectionView.scrollEnabled = NO;
+    }
+    self.flowLayout.scrollDirection = scrollDirection;
+}
 - (void)setup {
     if (_manager) {
         _manager.configuration.specialModeNeedHideVideoSelectBtn = YES;
-//        [_manager preloadData];
     }
     self.spacing = 3;
     self.lineCount = 3;
@@ -138,6 +162,7 @@
     self.tag = 9999;
     _showAddCell = YES;
     self.tempShowAddCell = YES;
+    self.adaptiveDarkness = YES;
     
     self.flowLayout.minimumLineSpacing = self.spacing;
     self.flowLayout.minimumInteritemSpacing = self.spacing;
@@ -165,6 +190,8 @@
     vc.currentModelIndex = [self.manager.afterSelectedArray indexOfObject:model];
     vc.previewShowDeleteButton = self.previewShowDeleteButton;
     vc.photoView = self;
+    vc.modalPresentationStyle = UIModalPresentationOverFullScreen;
+    vc.modalPresentationCapturesStatusBarAppearance = YES;
     [[self hx_viewController] presentViewController:vc animated:YES completion:nil];
 }
 - (void)jumpPreviewViewControllerWithIndex:(NSInteger)index {
@@ -187,6 +214,16 @@
     }
     return nil;
 }
+- (HXPhotoSubViewCell *)collectionViewCellWithIndex:(NSInteger)index {
+    if (index < 0 || index > self.dataList.count - 1 || !self.dataList.count) {
+        return nil;
+    }
+    HXPhotoSubViewCell *cell = (HXPhotoSubViewCell *)[self.collectionView cellForItemAtIndexPath:[NSIndexPath indexPathForItem:index inSection:0]];
+    if (cell.model.type == HXPhotoModelMediaTypeCamera) {
+        return nil;
+    }
+    return cell;
+}
 - (void)setEditEnabled:(BOOL)editEnabled {
     _editEnabled = editEnabled;
     self.collectionView.editEnabled = editEnabled;
@@ -194,9 +231,9 @@
 
 - (void)setManager:(HXPhotoManager *)manager {
     _manager = manager;
-//    if (!manager.cameraRollAlbumModel) {
-//        [manager preloadData];
-//    }
+    if (!manager.cameraRollAlbumModel) {
+        [manager preloadData];
+    }
     manager.configuration.specialModeNeedHideVideoSelectBtn = YES;
     if (self.manager.afterSelectedArray.count > 0) {
         if ([self.delegate respondsToSelector:@selector(photoListViewControllerDidDone:allList:photos:videos:original:)]) {
@@ -324,11 +361,18 @@
         vc.currentModelIndex = [self.dataList indexOfObject:model];
         vc.previewShowDeleteButton = self.previewShowDeleteButton;
         vc.photoView = self;
+        vc.modalPresentationStyle = UIModalPresentationOverFullScreen;
+        vc.modalPresentationCapturesStatusBarAppearance = YES;
         [[self hx_viewController] presentViewController:vc animated:YES completion:nil];
     }
 }
 
 #pragma mark - < HXPhotoPreviewViewControllerDelegate >
+- (void)photoPreviewControllerDidCancel:(HXPhotoPreviewViewController *)previewController model:(HXPhotoModel *)model {
+    if ([self.delegate respondsToSelector:@selector(photoViewPreviewDismiss:)]) {
+        [self.delegate photoViewPreviewDismiss:self];
+    }
+}
 - (void)photoPreviewCellDownloadImageComplete:(HXPhotoPreviewViewController *)previewController model:(HXPhotoModel *)model {
     if (!model.loadOriginalImage) {
         NSIndexPath *indexPath = [self currentModelIndexPath:model];
@@ -370,37 +414,35 @@
         [self.manager preloadData];
     }
     if (self.outerCamera) {
-            if (self.manager.type == HXPhotoManagerSelectedTypePhoto) {
-                if (self.manager.configuration.photoMaxNum > 0) {
-                    self.manager.configuration.maxNum = self.manager.configuration.photoMaxNum;
-                }
-            }else if (self.manager.type == HXPhotoManagerSelectedTypeVideo) {
-                if (self.manager.configuration.videoMaxNum > 0) {
-                    self.manager.configuration.maxNum = self.manager.configuration.videoMaxNum;
-                }
-            }else {
-                if (self.manager.configuration.photoMaxNum > 0 &&
-                    self.manager.configuration.videoMaxNum > 0) {
-                    self.manager.configuration.maxNum = self.manager.configuration.videoMaxNum + self.manager.configuration.photoMaxNum;
-                }
+        HXPhotoBottomViewModel *shootingModel = [[HXPhotoBottomViewModel alloc] init];
+        shootingModel.title = [NSBundle hx_localizedStringForKey:@"拍摄"];
+        if (self.manager.type == HXPhotoManagerSelectedTypePhoto) {
+            if (self.manager.configuration.photoMaxNum > 0) {
+                self.manager.configuration.maxNum = self.manager.configuration.photoMaxNum;
             }
-        UIAlertController *alertController = [UIAlertController alertControllerWithTitle:nil message:nil preferredStyle:UIAlertControllerStyleActionSheet];
-        if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
-            UIPopoverPresentationController *pop = [alertController popoverPresentationController];
-            pop.permittedArrowDirections = UIPopoverArrowDirectionAny;
-            pop.sourceView = self;
-            pop.sourceRect = self.bounds;
+        }else if (self.manager.type == HXPhotoManagerSelectedTypeVideo) {
+            if (self.manager.configuration.videoMaxNum > 0) {
+                self.manager.configuration.maxNum = self.manager.configuration.videoMaxNum;
+            }
+        }else {
+            if (self.manager.configuration.photoMaxNum > 0 &&
+                self.manager.configuration.videoMaxNum > 0) {
+                self.manager.configuration.maxNum = self.manager.configuration.videoMaxNum + self.manager.configuration.photoMaxNum;
+            }
+            shootingModel.subTitle = [NSBundle hx_localizedStringForKey:@"照片或视频"];
         }
-        [alertController addAction:[UIAlertAction actionWithTitle:[NSBundle hx_localizedStringForKey:@"相机"] style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            [self goCameraViewController];
-        }]];
+        HXPhotoBottomViewModel *selectModel = [[HXPhotoBottomViewModel alloc] init];
+        selectModel.title = [NSBundle hx_localizedStringForKey:@"从手机相册选择"];
         
-        [alertController addAction:[UIAlertAction actionWithTitle:[NSBundle hx_localizedStringForKey:@"相册"] style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            [self directGoPhotoViewController];
-        }]];
-        
-        [alertController addAction:[UIAlertAction actionWithTitle:[NSBundle hx_localizedStringForKey:@"取消"] style:UIAlertActionStyleCancel handler:nil]];
-        [self.hx_viewController presentViewController:alertController animated:YES completion:nil];
+        HXWeakSelf
+        HXPhotoBottomSelectView *selectView = [HXPhotoBottomSelectView showSelectViewWithModels:@[shootingModel, selectModel] headerView:nil cancelTitle:nil selectCompletion:^(NSInteger index, HXPhotoBottomSelectView * _Nonnull model) {
+            if (index == 0) {
+                [weakSelf goCameraViewController];
+            }else if (index == 1) {
+                [weakSelf directGoPhotoViewController];
+            }
+        } cancelClick:nil];
+        selectView.adaptiveDarkness = self.adaptiveDarkness;
         return;
     }
     [self directGoPhotoViewController];
@@ -408,6 +450,8 @@
 
 - (void)directGoPhotoViewController {
     HXCustomNavigationController *nav = [[HXCustomNavigationController alloc] initWithManager:self.manager delegate:self];
+    nav.modalPresentationStyle = UIModalPresentationOverFullScreen;
+    nav.modalPresentationCapturesStatusBarAppearance = YES;
     [[self hx_viewController] presentViewController:nav animated:YES completion:nil]; 
 }
 #pragma mark - < HXCustomNavigationControllerDelegate >
@@ -415,6 +459,29 @@
     
     if ([self.delegate respondsToSelector:@selector(photoListViewControllerDidDone:allList:photos:videos:original:)]) {
         [self.delegate photoListViewControllerDidDone:self allList:allList photos:photoList videos:videoList original:original];
+    }
+    if ([self.delegate respondsToSelector:@selector(photoViewCurrentSelected:photos:videos:original:)]) {
+        NSMutableArray *allModel = [NSMutableArray array];
+        NSMutableArray *photoModels = [NSMutableArray array];
+        NSMutableArray *videoModels = [NSMutableArray array];
+        NSMutableArray *tempAll = allList.mutableCopy;
+        for (HXPhotoModel *pModel in self.dataList) {
+            for (HXPhotoModel *subPModel in tempAll) {
+                if ([pModel isEqualPhotoModel:subPModel]) {
+                    [tempAll removeObject:subPModel];
+                    break;
+                }
+            }
+        }
+        for (HXPhotoModel *photoModel in tempAll) {
+            if (photoModel.subType == HXPhotoModelMediaSubTypePhoto) {
+                [photoModels addObject:photoModel];
+            }else if (photoModel.subType == HXPhotoModelMediaSubTypeVideo) {
+                [videoModels addObject:photoModel];
+            }
+            [allModel addObject:photoModel];
+        }
+        [self.delegate photoViewCurrentSelected:allModel.copy photos:photoModels.copy videos:videoModels.copy original:original];
     }
     [self setupDataWithAllList:allList photos:photoList videos:videoList original:original];
 }
@@ -452,11 +519,24 @@
                             }else if (weakSelf.manager.afterSelectedVideoArray.count > 0) {
                                 cameraType = HXPhotoConfigurationCameraTypeVideo;
                             }else {
-                                cameraType = HXPhotoConfigurationCameraTypeTypePhotoAndVideo;
+                                cameraType = HXPhotoConfigurationCameraTypePhotoAndVideo;
                             }
                         }else {
-                            cameraType = HXPhotoConfigurationCameraTypeTypePhotoAndVideo;
+                            cameraType = HXPhotoConfigurationCameraTypePhotoAndVideo;
                         }
+                    }
+                    switch (weakSelf.manager.configuration.customCameraType) {
+                        case HXPhotoCustomCameraTypePhoto:
+                            cameraType = HXPhotoConfigurationCameraTypePhoto;
+                            break;
+                        case HXPhotoCustomCameraTypeVideo:
+                            cameraType = HXPhotoConfigurationCameraTypeVideo;
+                            break;
+                        case HXPhotoCustomCameraTypePhotoAndVideo:
+                            cameraType = HXPhotoConfigurationCameraTypePhotoAndVideo;
+                            break;
+                        default:
+                            break;
                     }
                     if (weakSelf.manager.configuration.shouldUseCamera) {
                         weakSelf.manager.configuration.shouldUseCamera([weakSelf hx_viewController], cameraType, weakSelf.manager);
@@ -473,6 +553,8 @@
                 HXCustomNavigationController *nav = [[HXCustomNavigationController alloc] initWithRootViewController:vc];
                 nav.isCamera = YES;
                 nav.supportRotation = weakSelf.manager.configuration.supportRotation;
+                nav.modalPresentationStyle = UIModalPresentationOverFullScreen;
+                nav.modalPresentationCapturesStatusBarAppearance = YES;
                 [[weakSelf hx_viewController] presentViewController:nav animated:YES completion:nil];
             }else {
                 hx_showAlert([weakSelf hx_viewController], [NSBundle hx_localizedStringForKey:@"无法使用相机"], [NSBundle hx_localizedStringForKey:@"请在设置-隐私-相机中允许访问相机"], [NSBundle hx_localizedStringForKey:@"取消"], [NSBundle hx_localizedStringForKey:@"设置"], nil, ^{
@@ -517,6 +599,10 @@
         }
     }
     if (model.subType == HXPhotoModelMediaSubTypePhoto) {
+        if (self.manager.type == HXPhotoManagerSelectedTypeVideo) {
+            [[self hx_viewController].view hx_showImageHUDText:[NSBundle hx_localizedStringForKey:@"图片不能和视频同时选择"]];
+            return;
+        }
         // 当选择图片个数没有达到最大个数时就添加到选中数组中
         if ([self.manager afterSelectPhotoCountIsMaximum]) {
             NSInteger maxCount = self.manager.configuration.photoMaxNum > 0 ? self.manager.configuration.photoMaxNum : self.manager.configuration.maxNum;
@@ -524,6 +610,10 @@
             return;
         }
     }else if (model.subType == HXPhotoModelMediaSubTypeVideo) {
+        if (self.manager.type == HXPhotoManagerSelectedTypePhoto) {
+            [[self hx_viewController].view hx_showImageHUDText:[NSBundle hx_localizedStringForKey:@"视频不能和图片同时选择"]];
+            return;
+        }
         // 当选中视频个数没有达到最大个数时就添加到选中数组中 
         if (model.videoDuration < self.manager.configuration.videoMinimumSelectDuration) {
             
@@ -656,6 +746,7 @@
 
 #pragma mark - < HXAlbumListViewControllerDelegate >
 - (void)setupDataWithAllList:(NSArray *)allList photos:(NSArray *)photos videos:(NSArray *)videos original:(BOOL)original {
+    
     self.original = original;
     NSMutableArray *tempAllArray = [NSMutableArray array];
     NSMutableArray *tempPhotoArray = [NSMutableArray array];
@@ -717,6 +808,11 @@
         self.changeCompleteBlock(allList.copy, photos.copy, videos.copy, original);
     }
     [self setupNewFrame];
+    if (self.scrollDirection == UICollectionViewScrollDirectionHorizontal &&
+        self.dataList.count) {
+        NSInteger currentItem = self.tempShowAddCell ? self.dataList.count : self.dataList.count - 1;
+        [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:currentItem inSection:0] atScrollPosition:UICollectionViewScrollPositionRight animated:YES];
+    }
 }
 - (NSArray *)dataSourceArrayOfCollectionView:(HXCollectionView *)collectionView {
     return self.dataList;
@@ -825,7 +921,9 @@
 }
 #pragma mark - < 更新高度 >
 - (void)setupNewFrame {
-    CGFloat itemW = (self.hx_w - self.spacing * (self.lineCount - 1)) / self.lineCount;
+    UIEdgeInsets insets = self.collectionView.contentInset;
+    CGFloat itemW = (self.hx_w - self.spacing * (self.lineCount - 1) - insets.left - insets.right) / self.lineCount;
+    if (self.scrollDirection == UICollectionViewScrollDirectionHorizontal) itemW -= 10;
     if (itemW) self.flowLayout.itemSize = CGSizeMake(itemW, itemW);
     
     NSInteger dataCount = self.tempShowAddCell ? self.dataList.count + 1 : self.dataList.count;
@@ -833,6 +931,7 @@
     if (self.lineCount != 0) numOfLinesNew = (dataCount / self.lineCount) + 1;
     if (dataCount % self.lineCount == 0) numOfLinesNew -= 1;
     self.flowLayout.minimumLineSpacing = self.spacing;
+    self.flowLayout.minimumInteritemSpacing = self.spacing;
     
     if (numOfLinesNew != self.numOfLinesOld) {
         self.numOfLinesOld = numOfLinesNew;
@@ -841,7 +940,11 @@
             newHeight = 0;
             self.numOfLinesOld = 0;
         }
-        self.hx_h = newHeight;
+        if (self.scrollDirection == UICollectionViewScrollDirectionHorizontal) {
+            self.hx_h = itemW;
+        }else {
+            self.hx_h = newHeight;
+        }
         if ([self.delegate respondsToSelector:@selector(photoView:updateFrame:)]) {
             [self.delegate photoView:self updateFrame:self.frame]; 
         }
@@ -855,7 +958,7 @@
     [super layoutSubviews];
     if (self.lineCount <= 0) self.lineCount = 1;
     NSInteger dataCount = self.tempShowAddCell ? self.dataList.count + 1 : self.dataList.count;
-    NSInteger numOfLinesNew = (dataCount / self.lineCount) + 1;
+//    NSInteger numOfLinesNew = (dataCount / self.lineCount) + 1;
     
     [self setupNewFrame];
     
@@ -863,14 +966,18 @@
     CGFloat height = self.frame.size.height;
     
     if (dataCount == 1) {
-        CGFloat itemW = (width - self.spacing * (self.lineCount - 1)) / self.lineCount;
-        if ((int)height != (int)itemW) {
+        UIEdgeInsets insets = self.collectionView.contentInset;
+        CGFloat itemW = (width - self.spacing * (self.lineCount - 1) - insets.left - insets.right) / self.lineCount;
+        CGFloat roundH = roundf(height);
+        CGFloat roundW = roundf(itemW);
+        
+        if (roundH != roundW && fabs(height - itemW) >= 2) {
             self.hx_h = itemW;
         }
     }
-    if (dataCount % self.lineCount == 0) {
-        numOfLinesNew -= 1;
-    }
+//    if (dataCount % self.lineCount == 0) {
+//        numOfLinesNew -= 1;
+//    }
     self.collectionView.frame = self.bounds;
     if (self.collectionView.hx_h <= 0) {
         self.numOfLinesOld = 0;

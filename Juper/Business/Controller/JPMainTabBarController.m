@@ -23,10 +23,10 @@
 
 #pragma mark - setup
 - (void)setupTabBarVC {
-    JPMainViewController *_0 = [JPMainViewController new];
 
- 
-   JPNavigationController *nva_0 = [self addChildViewController:_0 imageName:@"" selectedImageName:@"" title:@"首页"];
+    JPMainViewController *_0 = [JPMainViewController new];
+    JPNavigationController *nva_0 = [self addChildViewController:_0 imageName:@"" selectedImageName:@"" title:@"首页"];
+    
     self.viewControllers = @[nva_0];
 
     self.delegate = self;
